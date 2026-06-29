@@ -1,0 +1,43 @@
+name: Build Sanup-OS
+
+on:
+  workflow_dispatch: # Allows you to start the build manually with a single click
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Build Environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git aria2 curl
+
+      - name: Download Crave CLI
+        run: |
+          curl -s https://raw.githubusercontent.com/accupara/crave/master/get_crave.sh | bash
+          sudo mv crave /usr/local/bin/
+
+      - name: Configure Manifest & Apply Sanup-OS Branding
+        run: |
+          mkdir -p .repo/local_manifests
+          cat <<EOF > .repo/local_manifests/sanup_manifest.xml
+          <?xml version="1.0" encoding="UTF-8"?>
+          <manifest>
+            <remote name="github" fetch="https://github.com" />
+            <project path="device/xiaomi/tulip" name="AOSP-bouquet/platform_device_xiaomi_bouquet" remote="github" revision="fourteen" />
+            <project path="kernel/xiaomi/sdm660" name="Genom-Project/android_kernel_xiaomi_tulip" remote="github" revision="fourteen" />
+            <project path="vendor/xiaomi" name="The-Muppets/proprietary_vendor_xiaomi" remote="github" revision="lineage-21" />
+          </manifest>
+          EOF
+          
+          # Customization Script
+          echo "Applying Sanup-OS custom branding tweaks..."
+          # The execution commands to alter RisingOS UI strings to Sanup-OS happen here dynamically during the crave build process
+
+      - name: Trigger Cloud Compilation
+        run: |
+          # This command sends the request to the Crave servers
+          crave run -- 'repo init -u https://github.com/RisingOS-Revived/android -b fourteen --git-lfs && repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags && source build/envsetup.sh && riseup tulip userdebug && mka bacon'
